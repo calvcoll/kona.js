@@ -30,12 +30,21 @@ var opts = require('nomnom')
 		metavar: 'SECONDS',
 		help: 'The seconds between wallpaper changes'
 	})
+	.option('directory', {
+		abbr: 'dir',
+		default: './',
+		flag: true,
+		metavar: 'DIRECTORY',
+		help: 'The directory to save files into'
+	})
 	.parse();
 
 sfw = opts.sfw
 if (opts.debug) console.log("sfw?: " + sfw)
 time = opts.time
 if (opts.debug) console.log("time: " + time)
+dir = opts.directory
+if (opts.debug) console.log("directory: " + dir)
 
 hosts = ["http://konachan.com","http://yande.re"];
 
@@ -55,7 +64,11 @@ var download = function() {
 				console.log("Downloading " + file_url)
 				var file_name = querystring.unescape(file_url.split('/')[file_url.split('/').length - 1])
 				if (opts.debug) console.log("File name is :" + file_name)
-				request(file_url).pipe(fs.createWriteStream(file_name))
+				var path = dir + file_name
+				if (dir[dir.length - 1] != '/') {
+					path = dir + '/' + file_name
+				}
+				request(file_url).pipe(fs.createWriteStream(path))
 				console.log("File saved.")
 			}
 		}
