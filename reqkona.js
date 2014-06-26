@@ -3,11 +3,11 @@ var querystring = require('querystring')
 var fs = require('fs');
 
 var opts = require('nomnom')
-	.script('konajs')
-	.option('debug', {
-		abbr: 'd',
-		flag: true,
-		help: 'Prints debugging info'
+	.script('konajs') 										// Sets the name in help
+	.option('debug', {										// Sets xyz option
+		abbr: 'd',													// sets abbrievated command
+		flag: true,													// Whether it's a flag and doesn't swallow the next value
+		help: 'Prints debugging info'				// User readable info on the command
 	})
 	.option('version', {
 		flag: true,
@@ -18,7 +18,7 @@ var opts = require('nomnom')
 	})
 	.option('sfw', {
 		abbr: 's',
-		flag: true,
+		flag: false,
 		default: false,
 		metavar: 'BOOLEAN',
 		help: 'Prevents NSFW pictures'
@@ -26,14 +26,14 @@ var opts = require('nomnom')
 	.option('time', {
 		abbr: 't',
 		default: 300,
-		flag: true,
+		flag: false,
 		metavar: 'SECONDS',
 		help: 'The seconds between wallpaper changes'
 	})
 	.option('directory', {
 		abbr: 'dir',
 		default: './',
-		flag: true,
+		flag: false,
 		metavar: 'DIRECTORY',
 		help: 'The directory to save files into'
 	})
