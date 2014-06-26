@@ -1,0 +1,7 @@
+node_modules/
+*.png
+*jpg
+
+
+# File System Clutter
+.DS_Store
