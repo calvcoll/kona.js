@@ -39,8 +39,11 @@ var opts = require('nomnom')
 	})
 	.parse();
 
+
+// TODO: Add this!
 sfw = opts.sfw
 if (opts.debug) console.log("sfw?: " + sfw)
+// END TODO
 time = opts.time
 if (opts.debug) console.log("time: " + time)
 dir = opts.directory
