@@ -18,9 +18,7 @@ var opts = require('nomnom')
 	})
 	.option('sfw', {
 		abbr: 's',
-		flag: false,
-		default: false,
-		metavar: 'BOOLEAN',
+		flag: true,
 		help: 'Prevents NSFW pictures'
 	})
 	.option('time', {
@@ -43,60 +41,117 @@ var opts = require('nomnom')
 	})
 	.parse();
 
+var silentlog = function(text) {
+	json = false;
+	if (typeof text != "string") {
+		text = JSON.stringify(text);
+		json = true;
+	}
+	fs.appendFile('./kona.log', text + "\n", function(error) {
+		if (error) {
+			console.log("Couldn't write to log!");
+		}
+	});	
+}
 
-// TODO: Add this!
+var log = function(text) {
+	json = false;
+	if (typeof text != "string") {
+		text = JSON.stringify(text);
+		json = true;
+	}
+	fs.appendFile('./kona.log', text + "\n", function(error) {
+		if (error) {
+			console.log("Couldn't write to log!");
+		}
+		else {
+			if (!json) console.log(text);
+		}
+	});
+}
+
+// TODO: Add better searches for sfw
 sfw = opts.sfw
-if (opts.debug) console.log("sfw?: " + sfw);
-// END TODO
+if (opts.debug) log("sfw?: " + sfw);
 time = opts.time
-if (opts.debug) console.log("time: " + time);
+if (opts.debug) log("time: " + time);
 dir = opts.directory
-if (opts.debug) console.log("directory: " + dir);
+if (opts.debug) log("directory: " + dir);
 test = opts.test
-if (opts.debug) console.log("test: " + test);
+if (opts.debug) log("test: " + test);
 
-nsfw_tags = ['nsfw', 'nude']
+nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts'];
 
-hosts = ["http://konachan.com","http://yande.re"];
+hosts = ["https://konachan.com","https://yande.re"];
+
+log('App started.');
+if (sfw) log('The tags to block nsfw material are not fully complete, send me any tags you believe should be added.')
 
 var downloadImage = function(file_url) {
-	console.log("Downloading " + file_url)
-	var file_name = querystring.unescape(file_url.split('/')[file_url.split('/').length - 1])
-	if (opts.debug) console.log("File name is :" + file_name)
-	var path = dir + file_name
+	log("Downloading " + file_url);
+	var file_name = querystring.unescape(file_url.split('/')[file_url.split('/').length - 1]); //removes html escaped strings
+	if (opts.debug) log("File name is :" + file_name);
+	var path = dir + file_name;
 	if (dir[dir.length - 1] != '/') {
-		path = dir + '/' + file_name
+		path = dir + '/' + file_name;
 	}
 
 	if (!test) {
-		request(file_url).pipe(fs.createWriteStream(path))
-		console.log("File saved.")
+		request(file_url).pipe(fs.createWriteStream(path).on('finish', function() {
+			log("File saved.");
+		}).on('error', function(error) {
+			silentlog(error);
+		}));
 	}
 }
 
 var download = function() {
 	host = hosts[Math.floor(Math.random() * 2)];
-	console.log("Host: " + host)
-	request(host + "/post.json?limit=1", function(error, response, body) {
-
+	log("Host: " + host);
+	request(host + "/post.json?limit=100", function(error, response, body) {
 		if (!error && response.statusCode == 200) {
-			json = JSON.parse(body)[0]
-			if (opts.debug) console.log(json)
-			file_url = json.file_url
-			if (opts.debug) console.log(file_url)
+			jsonlist = JSON.parse(body);
+			log('json start')
+			if (opts.debug) log(jsonlist);
+			log('json end')
+			for (iter = 0; iter < jsonlist.length; iter++) {
+				json = jsonlist[iter];
+				if (opts.debug) log(json);
+				file_url = json.file_url;
+				imagetags = json.tags;
+				imageSFW = true;
+				for (i=0; i<nsfw_tags.length; i++) {
+					if (imagetags != undefined)
+						if (imagetags.indexOf(nsfw_tags[i]) != -1) {
+							imageSFW = false;
+							break;
+						}
+					else {
+						log("Couldn't find tags.")
+					}
+				}
+				if (opts.debug) log(file_url);
 
-			if (file_url != undefined) {
-				if (sfw && imageSFW) downloadImage(file_url)
-				else if (!sfw) downloadImage(file_url)
-				else console.log('Image is not sfw according to tags.')
+				if (file_url != undefined && imagetags != undefined) {
+					if (sfw && imageSFW) downloadImage(file_url);
+					else if (!sfw) downloadImage(file_url);
+					else log('Image is not sfw according to tags.');
+				}
 			}
 		}
 		else {
-			console.log("Couldn't retrieve a valid url.")
+			log("Couldn't retrieve a valid url.");
 		}
-
+	}).on('end', function() {
+		if (opts.debug) log('call ended');
+	}).on('error', function(error) {
+		silentlog(error)
 	});
 }
 
-download();
-setInterval(download, time * 1000);
+var start = function() {
+	download();
+	setInterval(download, time * 1000);
+}
+
+start();
