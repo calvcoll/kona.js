@@ -32,8 +32,7 @@ var opts = require('nomnom')
 		flag: true,
 		help: "Runs through, but doesn't download"
 	})
-	.option('directory', {
-		abbr: 'dir',
+	.option('directory', { // no abbr since it seems to break it
 		default: './',
 		flag: false,
 		metavar: 'DIRECTORY',
@@ -71,13 +70,13 @@ var log = function(text) {
 }
 
 // TODO: Add better searches for sfw
-sfw = opts.sfw
+var sfw = opts.sfw
 if (opts.debug) log("sfw?: " + sfw);
-time = opts.time
+var time = opts.time
 if (opts.debug) log("time: " + time);
-dir = opts.directory
+var dir = opts.directory
 if (opts.debug) log("directory: " + dir);
-test = opts.test
+var test = opts.test
 if (opts.debug) log("test: " + test);
 
 nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts'];
@@ -90,17 +89,20 @@ if (sfw) log('The tags to block nsfw material are not fully complete, send me an
 var downloadImage = function(file_url) {
 	log("Downloading " + file_url);
 	var file_name = querystring.unescape(file_url.split('/')[file_url.split('/').length - 1]); //removes html escaped strings
-	if (opts.debug) log("File name is :" + file_name);
+	if (opts.debug) log("File name is: " + file_name);
 	var path = dir + file_name;
 	if (dir[dir.length - 1] != '/') {
 		path = dir + '/' + file_name;
 	}
 
+	log('path: ' + path)
+
 	if (!test) {
 		request(file_url).pipe(fs.createWriteStream(path).on('finish', function() {
 			log("File saved.");
 		}).on('error', function(error) {
-			silentlog(error);
+			log('File saving error. :(')
+			silentlog('Saving error: ' + error);
 		}));
 	}
 }
@@ -111,31 +113,20 @@ var download = function() {
 	request(host + "/post.json?limit=100", function(error, response, body) {
 		if (!error && response.statusCode == 200) {
 			jsonlist = JSON.parse(body);
-			log('json start')
-			if (opts.debug) log(jsonlist);
-			log('json end')
 			for (iter = 0; iter < jsonlist.length; iter++) {
-				json = jsonlist[iter];
-				if (opts.debug) log(json);
-				file_url = json.file_url;
-				imagetags = json.tags;
-				imageSFW = true;
-				for (i=0; i<nsfw_tags.length; i++) {
-					if (imagetags != undefined)
-						if (imagetags.indexOf(nsfw_tags[i]) != -1) {
-							imageSFW = false;
-							break;
-						}
-					else {
-						log("Couldn't find tags.")
-					}
-				}
+				var json = jsonlist[iter];
+				if (opts.debug) log(json)
+				var file_url = json.file_url;
+				var file_tags = json.tags;
+				log('File tags: ' + file_tags);
+
 				if (opts.debug) log(file_url);
 
-				if (file_url != undefined && imagetags != undefined) {
-					if (sfw && imageSFW) downloadImage(file_url);
-					else if (!sfw) downloadImage(file_url);
-					else log('Image is not sfw according to tags.');
+				if (file_url != undefined ){//&& imagetags != undefined) {
+					// if (sfw && imageSFW) downloadImage(file_url);
+					// else if (!sfw) downloadImage(file_url);
+					// else log('Image is not sfw according to tags.');
+					downloadImage(file_url);
 				}
 			}
 		}
@@ -145,8 +136,8 @@ var download = function() {
 	}).on('end', function() {
 		if (opts.debug) log('call ended');
 	}).on('error', function(error) {
-		silentlog(error)
-	});
+		silentlog('Fetching error: ' + error)
+	}).setMaxListeners(100);
 }
 
 var start = function() {
