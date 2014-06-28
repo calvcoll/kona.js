@@ -103,7 +103,10 @@ var downloadImage = function(file_url) {
 		}).on('error', function(error) {
 			log('File saving error. :(')
 			silentlog('Saving error: ' + error);
-		}));
+		})).on('error', function(error) {
+			log('Possible streaming error.')
+			silentlog('Stream error: ' + error)
+		});
 	}
 }
 
