@@ -3,6 +3,9 @@ node_modules/
 *.jpg
 *.log
 
+# JSON for checking
+example.json
+
 
 # File System Clutter
 .DS_Store
