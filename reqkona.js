@@ -28,6 +28,13 @@ var opts = require('nomnom')
 		metavar: 'SECONDS',
 		help: 'The seconds between wallpaper changes'
 	})
+	.option('limit', {
+		abbr: 'l',
+		default: 1,
+		flag: false,
+		metavar: 'PICTURES',
+		help: 'The amount of pictures to be downloaded at once'
+	})
 	.option('test', {
 		flag: true,
 		help: "Runs through, but doesn't download"
@@ -50,7 +57,7 @@ var silentlog = function(text) {
 		if (error) {
 			console.log("Couldn't write to log!");
 		}
-	});	
+	});
 }
 
 var log = function(text) {
@@ -78,6 +85,8 @@ var dir = opts.directory
 if (opts.debug) log("directory: " + dir);
 var test = opts.test
 if (opts.debug) log("test: " + test);
+var limit = opts.limit
+if (opts.debug) log("limit: " + limit)
 
 nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts'];
 
@@ -95,7 +104,7 @@ var downloadImage = function(file_url) {
 		path = dir + '/' + file_name;
 	}
 
-	log('path: ' + path)
+	if (opts.debug) log('path: ' + path)
 
 	if (!test) {
 		request(file_url).pipe(fs.createWriteStream(path).on('finish', function() {
@@ -113,7 +122,7 @@ var downloadImage = function(file_url) {
 var download = function() {
 	host = hosts[Math.floor(Math.random() * 2)];
 	log("Host: " + host);
-	request(host + "/post.json?limit=100", function(error, response, body) {
+	request(host + "/post.json?limit=" + limit, function(error, response, body) {
 		if (!error && response.statusCode == 200) {
 			jsonlist = JSON.parse(body);
 			for (iter = 0; iter < jsonlist.length; iter++) {
@@ -123,13 +132,18 @@ var download = function() {
 				var file_tags = json.tags;
 				log('File tags: ' + file_tags);
 
+				var image_sfw = true;
+				nsfw_tags.forEach(function(element,index,array){
+					if (file_tags.indexOf(element) != -1) image_sfw = false;
+				});
+
 				if (opts.debug) log(file_url);
 
-				if (file_url != undefined ){//&& imagetags != undefined) {
-					// if (sfw && imageSFW) downloadImage(file_url);
-					// else if (!sfw) downloadImage(file_url);
-					// else log('Image is not sfw according to tags.');
-					downloadImage(file_url);
+				if (file_url != undefined ) {
+					if (sfw && image_sfw) downloadImage(file_url);
+					else if (!sfw) downloadImage(file_url);
+					else log('Image is not sfw according to tags.');
+					// downloadImage(file_url);
 				}
 			}
 		}
