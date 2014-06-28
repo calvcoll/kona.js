@@ -70,14 +70,15 @@ var log = function(text) {
 		text = JSON.stringify(text);
 		json = true;
 	}
-	fs.appendFile('./kona.log', text + "\n", function(error) {
+	fs.appendFileSync('./kona.log', text + "\n"/*, function(error) {
 		if (error) {
 			console.log("Couldn't write to log!");
 		}
 		else {
 			if (!json) console.log(text);
 		}
-	});
+	}*/);
+	if (!json) console.log(text);
 }
 
 // TODO: Add better searches for sfw
