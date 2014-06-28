@@ -59,7 +59,7 @@ var silentlog = function(text) {
 	}
 	fs.appendFile('./kona.log', text + "\n", function(error) {
 		if (error) {
-			console.log("Couldn't write to log!");
+			console.log("Couldn't write to log file!");
 		}
 	});
 }
@@ -70,15 +70,12 @@ var log = function(text) {
 		text = JSON.stringify(text);
 		json = true;
 	}
-	fs.appendFileSync('./kona.log', text + "\n"/*, function(error) {
-		if (error) {
-			console.log("Couldn't write to log!");
-		}
-		else {
-			if (!json) console.log(text);
-		}
-	}*/);
 	if (!json) console.log(text);
+	fs.appendFile('./kona.log', text + "\n", function(error) {
+		if (error) {
+			console.log("Couldn't write to log file!");
+		}
+	});
 }
 
 // TODO: Add better searches for sfw
