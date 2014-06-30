@@ -130,9 +130,6 @@ var downloadImage = function(file_url) {
 		request(file_url).pipe(fs.createWriteStream(path).on('finish', function() {
 			log("Images downloaded & saved.");
 			images_downloaded += 1;
-			if (images_downloaded % limit == 0) {
-				log('All pictures downloaded.')
-			}
 		}).on('error', function(error) {
 			log('File saving error. :(')
 			silentlog('Saving error: ' + error);
@@ -143,35 +140,45 @@ var downloadImage = function(file_url) {
 	}
 }
 
-var download = function() {
-	host = hosts[Math.floor(Math.random() * 2)];
-	log("Host: " + host);
-	request(host + "/post.json?limit=" + limit, function(error, response, body) {
+var download = function(json) {
+		if (opts.debug && opts.json) log(json)
+		var file_url = json.file_url;
+		var file_tags = json.tags;
+		log('File tags: ' + file_tags);
+
+		var image_sfw = true;
+		nsfw_tags.forEach(function(element,index,array){
+			if (file_tags.indexOf(element) != -1) image_sfw = false;
+		});
+
+		if (opts.debug) log(file_url);
+
+		if (file_url != undefined ) {
+			if (sfw && image_sfw) downloadImage(file_url);
+			else if (!sfw) downloadImage(file_url);
+			else if (sfw && !image_sfw) {
+				log('Image ' + file_url + ' is not sfw according to tags. \n These tags are: ' + file_tags);
+			}
+		}
+}
+
+var updateList = function(jsonlist, iter) {
+	var list = jsonlist.splice(iter, 1);
+	iter--;
+	fs.writeFile('images_to_download.json', JSON.stringify(jsonlist), function(error) {
+		if (error) {
+			log('Error saving images_to_download.json: ' + error);
+		}
+	}).on('finish', function() {
+		silentlog('JSON list saved.')
+	});
+}
+
+var start = function() {
+	var jsonlist;
+	request(host + "/post.json?limit=" + 100, function(error, response, body) {
 		if (!error && response.statusCode == 200) {
 			jsonlist = JSON.parse(body);
-			for (iter = 0; iter < jsonlist.length; iter++) {
-				var json = jsonlist[iter];
-				if (opts.debug && opts.json) log(json)
-				var file_url = json.file_url;
-				var file_tags = json.tags;
-				log('File tags: ' + file_tags);
-
-				var image_sfw = true;
-				nsfw_tags.forEach(function(element,index,array){
-					if (file_tags.indexOf(element) != -1) image_sfw = false;
-				});
-
-				if (opts.debug) log(file_url);
-
-				if (file_url != undefined ) {
-					if (sfw && image_sfw) downloadImage(file_url);
-					else if (!sfw) downloadImage(file_url);
-					else if (sfw && !image_sfw) {
-						log('Image ' + file_url + ' is not sfw according to tags. \n These tags are: ' + file_tags);
-						images_downloaded += 1
-					}
-				}
-			}
 		}
 		else {
 			log("Couldn't retrieve a valid url.");
@@ -181,11 +188,41 @@ var download = function() {
 	}).on('error', function(error) {
 		silentlog('Fetching error: ' + error)
 	}).setMaxListeners(100);
+
+	fs.writeFile('images_to_download.json', JSON.stringify(jsonlist), function(error) {
+		if (error) {
+			log('Error saving images_to_download.json: ' + error);
+		}
+	}).on('finish', function() {
+		silentlog('JSON list saved.')
+	});
+
+	for (iter = 0; iter < jsonlist.length; iter++) {
+		var json = jsonlist[iter];
+		var previous_images_downloaded = images_downloaded;
+		download(json);
+		if (previous_images_downloaded == images_downloaded) {
+			jsonlist = jsonlist.splice(iter, 1);
+			iter--;
+			continue;
+		}
+		jsonlist = jsonlist.splice(iter, 1);
+		iter--;
+	}
+
+	//  Remember to re-add this:
+	//  if (imagesdownloaded % limit == 0)
+
+
+	// download();
+	// setInterval(download, time * 1000)
 }
 
-var start = function() {
-	download();
-	setInterval(download, time * 1000);
+var init = function() {
+	host = hosts[Math.floor(Math.random() * 2)];
+	log("Host: " + host);
+
+	start();
 }
 
-start();
+init();
