@@ -39,6 +39,10 @@ var opts = require('nomnom')
 		flag: true,
 		help: 'Whether or not to print json out under debug'
 	})
+	.option('host', {
+		flag: false,
+		help: 'The host to use. (has to be danbooru based)'
+	})
 	.option('test', {
 		flag: true,
 		help: "Runs through, but doesn't download"
@@ -78,46 +82,73 @@ var log = function(text) {
 	});
 }
 
+var hosts = ['https://konachan.com','https://yande.re'];
+var nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts', 'no_bra', 'no_pan', 'nipples'];
+var url_nsfw_tags = nsfw_tags.slice(5, nsfw_tags.length - 1);
+
 // TODO: Add better searches for sfw
-var sfw = opts.sfw
+var sfw = opts.sfw;
 if (opts.debug) log("sfw?: " + sfw);
 
-var time = opts.time
+var time = opts.time;
 if (opts.debug) log("time: " + time);
+
+var test = opts.test;
+if (opts.debug) log("test: " + test);
+
+var limit = opts.limit;
+if (opts.debug) log("limit: " + limit);
+
+var host = opts.host;
+if (opts.debug) log("host_to_use: " + host);
+
+if (host != undefined) {
+	var host_on_list = false;
+	for (i=0; i<hosts.length; i++) {
+		if (host == hosts[i]) {
+			host_on_list = true;
+			break;
+		}
+	}
+	if (!host_on_list) {
+		log('Host supplied isn\'t on the list, sorry.');
+		log('If you think this is supplied in error, open an issue with the host url specified.');
+		process.exit(1);
+	}
+}
+
+var init = function() {
+	log('App started.');
+	if (sfw) log('The tags to block nsfw material are not fully complete, send me any tags you believe should be added.')
+	images_downloaded = 0;
+
+	start();
+}
 
 var dir = opts.directory
 if (opts.debug) log("directory: " + dir);
-if (fs.existsSync(dir)) {
-	fs.statSync(dir, function(err, stats) {
-		if (stats.isFile()) {
-			log('Directory supplied is a file, this could cause problems.');
-			process.exit(1);
-		}
-	});
-}
-else {
-	log('Directory doesn\'t exist, it shall be created.');
-	fs.mkdirSync(dir);
-	log('Directory created.');
-}
-
-var test = opts.test
-if (opts.debug) log("test: " + test);
-
-var limit = opts.limit
-if (opts.debug) log("limit: " + limit)
-
-nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts', 'no_bra', 'no_pan', 'nipples'];
-
-hosts = ["https://konachan.com","https://yande.re"];
-
-log('App started.');
-if (sfw) log('The tags to block nsfw material are not fully complete, send me any tags you believe should be added.')
-images_downloaded = 0;
+fs.exists(dir, function(exists) {
+	if (exists) {
+		fs.stat(dir, function(err,stats) {
+			if (stats.isFile()) {
+				log('Directory supplied is a file, this could cause problems.');
+				process.exit(1);
+			}
+			else if (!err) {
+				init();
+			}
+		});
+	}
+	else {
+		log('Directory doesn\'t exist, it shall be created.');
+		fs.mkdir(dir,init);
+		log('Directory created.');
+	}
+});
 
 var downloadImage = function(file_url) {
 	log("Downloading " + file_url);
-	var file_name = querystring.unescape(file_url.split('/')[file_url.split('/').length - 1]); //removes html escaped strings
+	var file_name = file_url.split('/')[file_url.split('/').length - 1]; //querystring.unescape(); //removes html escaped strings
 	if (opts.debug) log("File name is: " + file_name);
 	var path = dir + file_name;
 	if (dir[dir.length - 1] != '/') {
@@ -133,20 +164,26 @@ var downloadImage = function(file_url) {
 			if (images_downloaded % limit == 0) {
 				log('All pictures downloaded.')
 			}
-		}).on('error', function(error) {
-			log('File saving error. :(')
-			silentlog('Saving error: ' + error);
 		})).on('error', function(error) {
-			log('Possible streaming error.')
+			log('Streaming error.')
 			silentlog('Stream error: ' + error)
-		}).setMaxListeners(100);
+			images_downloaded += 1;
+			if (images_downloaded % limit == 0) {
+				log('All pictures downloaded.')
+			}
+		}).setMaxListeners(limit);
 	}
 }
 
 var download = function() {
-	host = hosts[Math.floor(Math.random() * 2)];
+	if (host == undefined) host = hosts[Math.floor(Math.random() * 2)];
 	log("Host: " + host);
-	request(host + "/post.json?limit=" + limit, function(error, response, body) {
+	var url = host + '/post.json?limit=' + limit;
+	if (sfw) {
+		url += '&tags=-' + url_nsfw_tags.join('+-')
+	}
+	log("url:" + url);
+	request(url, function(error, response, body) {
 		if (!error && response.statusCode == 200) {
 			jsonlist = JSON.parse(body);
 			for (iter = 0; iter < jsonlist.length; iter++) {
@@ -180,12 +217,10 @@ var download = function() {
 		if (opts.debug) log('call ended');
 	}).on('error', function(error) {
 		silentlog('Fetching error: ' + error)
-	}).setMaxListeners(100);
+	}).setMaxListeners(limit);
 }
 
 var start = function() {
 	download();
 	setInterval(download, time * 1000);
 }
-
-start();
