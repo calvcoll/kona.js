@@ -1,5 +1,5 @@
 var request = require('request');
-var throttler = require('stream-throttle');
+var stream_throttler = require('stream-throttle');
 
 var querystring = require('querystring');
 var fs = require('fs');
@@ -47,7 +47,7 @@ var opts = require('nomnom')
 	.option('throttle', {
 		flag: false,
 		default: -1,
-		help: 'Throttles the download speed of the program',
+		help: 'Throttles the download speed of the program, this has to be higher than 0.',
 		metavar: 'kb/s',
 	})
 	.option('jpeg', {
@@ -107,7 +107,9 @@ var time = opts.time;
 if (opts.debug) log("time: " + time);
 
 var test = opts.test;
+if (test == undefined) test = false;
 if (opts.debug) log("test: " + test);
+if (test) log("This is a test, so you will not download the file.");
 
 var limit = opts.limit;
 if (opts.debug) log("limit: " + limit);
@@ -116,12 +118,21 @@ var host = opts.host;
 if (opts.debug) log("host_to_use: " + host);
 
 var jpeg = opts.jpeg;
-if (opts.debug) log("jpeg" + jpeg);
+if (jpeg == undefined) jpeg = false;
+if (opts.debug) log("jpeg: " + jpeg);
 var throttle_speed = opts.throttle;
 if (opts.debug) log("throttling_speed: " + throttle_speed);
 var is_throttled = false;
 if (throttle_speed > 0) is_throttled = true;
+else if (throttle_speed != -1) {
+	log('You gave an incorrect speed to throttle by.');
+	log('Enter a value higher than 0.');
+	process.exit(1);
+}
 if (opts.debug) log("is_throttled: " + is_throttled);
+if (is_throttled) {
+	var throttler = new stream_throttler.ThrottleGroup({rate:limit})
+}
 
 if (host != undefined) {
 	var host_on_list = false;
@@ -142,6 +153,7 @@ var init = function() {
 	log('App started.');
 	if (sfw) log('The tags to block nsfw material are not fully complete, send me any tags you believe should be added.')
 	images_downloaded = 0;
+	process.setMaxListeners(0); //unlimited listeners
 
 	start();
 }
@@ -196,8 +208,8 @@ var downloadImage = function(file_url) {
 	if (opts.debug && !test) log('path: ' + path)
 
 	if (!test) {
-		if (is_throttled) request(file_url).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError).setMaxListeners(limit + 1);
-		else if (throttle_speed > 0) request(file_url).pipe(new throttler.Throttle({rate:throttle_speed})).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError).setMaxListeners(limit + 1);
+		if (!is_throttled) request(file_url).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError);
+		else if (throttle_speed > 0) request(file_url).pipe(throttler.throttle).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError);
 	}
 }
 
@@ -244,7 +256,7 @@ var download = function() {
 		if (opts.debug) log('call ended');
 	}).on('error', function(error) {
 		silentlog('Fetching error: ' + error)
-	}).setMaxListeners(limit + 1);
+	})
 }
 
 var start = function() {
