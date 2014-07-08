@@ -1,11 +1,12 @@
 var request = require('request');
-var querystring = require('querystring')
+var throttler = require('stream-throttle');
+
+var querystring = require('querystring');
 var fs = require('fs');
 
 var opts = require('nomnom')
 	.script('konajs') 										// Sets the name in help
 	.option('debug', {										// Sets xyz option
-		abbr: 'd',													// sets abbrievated command
 		flag: true,													// Whether it's a flag and doesn't swallow the next value
 		help: 'Prints debugging info'				// User readable info on the command
 	})
@@ -16,10 +17,10 @@ var opts = require('nomnom')
 			return "Version 0.1";
 		}
 	})
-	.option('sfw', {
-		abbr: 's',
+	.option('nsfw', {
+		abbr: 'n',
 		flag: true,
-		help: 'Prevents NSFW pictures'
+		help: 'NSFW pictures are allowed with this flag'
 	})
 	.option('time', {
 		abbr: 't',
@@ -43,11 +44,23 @@ var opts = require('nomnom')
 		flag: false,
 		help: 'The host to use. (has to be danbooru based)'
 	})
+	.option('throttle', {
+		flag: false,
+		default: -1,
+		help: 'Throttles the download speed of the program',
+		metavar: 'kb/s',
+	})
+	.option('jpeg', {
+		abbr: 'j',
+		flag: true,
+		help: 'When flagged, this will download a jpeg file instead of a png'
+	})
 	.option('test', {
 		flag: true,
 		help: "Runs through, but doesn't download"
 	})
-	.option('directory', { // no abbr since it seems to break it
+	.option('directory', {
+		abbr: 'd',
 		default: './',
 		flag: false,
 		metavar: 'DIRECTORY',
@@ -87,7 +100,7 @@ var nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 
 var url_nsfw_tags = nsfw_tags.slice(5, nsfw_tags.length - 1);
 
 // TODO: Add better searches for sfw
-var sfw = opts.sfw;
+var sfw = !opts.nsfw;
 if (opts.debug) log("sfw?: " + sfw);
 
 var time = opts.time;
@@ -101,6 +114,14 @@ if (opts.debug) log("limit: " + limit);
 
 var host = opts.host;
 if (opts.debug) log("host_to_use: " + host);
+
+var jpeg = opts.jpeg;
+if (opts.debug) log("jpeg" + jpeg);
+var throttle_speed = opts.throttle;
+if (opts.debug) log("throttling_speed: " + throttle_speed);
+var is_throttled = false;
+if (throttle_speed > 0) is_throttled = true;
+if (opts.debug) log("is_throttled: " + is_throttled);
 
 if (host != undefined) {
 	var host_on_list = false;
@@ -146,6 +167,23 @@ fs.exists(dir, function(exists) {
 	}
 });
 
+var onRequestFinish = function() {
+	log("Images downloaded & saved.");
+	images_downloaded += 1;
+	if (images_downloaded % limit == 0) {
+		log('All pictures downloaded.')
+	}
+}
+
+var onRequestError = function(error) {
+	log('Streaming error.')
+	silentlog('Stream error: ' + error)
+	images_downloaded += 1;
+	if (images_downloaded % limit == 0) {
+		log('All pictures downloaded.')
+	}
+}
+
 var downloadImage = function(file_url) {
 	log("Downloading " + file_url);
 	var file_name = file_url.split('/')[file_url.split('/').length - 1]; //querystring.unescape(); //removes html escaped strings
@@ -158,20 +196,8 @@ var downloadImage = function(file_url) {
 	if (opts.debug && !test) log('path: ' + path)
 
 	if (!test) {
-		request(file_url).pipe(fs.createWriteStream(path).on('finish', function() {
-			log("Images downloaded & saved.");
-			images_downloaded += 1;
-			if (images_downloaded % limit == 0) {
-				log('All pictures downloaded.')
-			}
-		})).on('error', function(error) {
-			log('Streaming error.')
-			silentlog('Stream error: ' + error)
-			images_downloaded += 1;
-			if (images_downloaded % limit == 0) {
-				log('All pictures downloaded.')
-			}
-		}).setMaxListeners(limit);
+		if (is_throttled) request(file_url).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError).setMaxListeners(limit + 1);
+		else if (throttle_speed > 0) request(file_url).pipe(new throttler.Throttle({rate:throttle_speed})).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError).setMaxListeners(limit + 1);
 	}
 }
 
@@ -190,6 +216,7 @@ var download = function() {
 				var json = jsonlist[iter];
 				if (opts.debug && opts.json) log(json)
 				var file_url = json.file_url;
+				if (jpeg) file_url = json.jpeg_url;
 				var file_tags = json.tags;
 				log('File tags: ' + file_tags);
 
@@ -217,7 +244,7 @@ var download = function() {
 		if (opts.debug) log('call ended');
 	}).on('error', function(error) {
 		silentlog('Fetching error: ' + error)
-	}).setMaxListeners(limit);
+	}).setMaxListeners(limit + 1);
 }
 
 var start = function() {
