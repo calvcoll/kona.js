@@ -1,5 +1,6 @@
 var request = require('request');
 var stream_throttler = require('stream-throttle');
+var colors = require('colors');
 
 var querystring = require('querystring');
 var fs = require('fs');
@@ -68,6 +69,14 @@ var opts = require('nomnom')
 	})
 	.parse();
 
+colors.setTheme({
+	warn: 'yellow',
+	error: 'red',
+	debug: 'cyan',
+	info: 'green',
+	data: 'white'
+})
+
 var silentlog = function(text) {
 	json = false;
 	if (typeof text != "string") {
@@ -90,7 +99,27 @@ var log = function(text) {
 	if (!json) console.log(text);
 	fs.appendFile('./kona.log', text + "\n", function(error) {
 		if (error) {
-			console.log("Couldn't write to log file!");
+			console.log("Couldn't write to log file!".error);
+		}
+	});
+}
+
+var log = function(text, color) {
+	json = false;
+	if (typeof text != "string") {
+		text = JSON.stringify(text);
+		json = true;
+	}
+	if (!json) {
+		if (color == 'warn') console.log(text.warn);
+		if (color == 'error') console.log(text.error);
+		if (color == 'debug') console.log(text.debug);
+		if (color == 'info') console.log(text.info);
+		if (color == 'data') console.log(text.data);
+	}
+	fs.appendFile('./kona.log', text + "\n", function(error) {
+		if (error) {
+			console.log("Couldn't write to log file!".error);
 		}
 	});
 }
@@ -99,37 +128,36 @@ var hosts = ['https://konachan.com','https://yande.re'];
 var nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts', 'no_bra', 'no_pan', 'nipples'];
 var url_nsfw_tags = nsfw_tags.slice(5, nsfw_tags.length - 1);
 
-// TODO: Add better searches for sfw
 var sfw = !opts.nsfw;
-if (opts.debug) log("sfw?: " + sfw);
+if (opts.debug) log("sfw?: " + sfw, 'debug');
 
 var time = opts.time;
-if (opts.debug) log("time: " + time);
+if (opts.debug) log("time: " + time, 'debug');
 
 var test = opts.test;
 if (test == undefined) test = false;
-if (opts.debug) log("test: " + test);
+if (opts.debug) log("test: " + test, 'debug');
 if (test) log("This is a test, so you will not download the file.");
 
 var limit = opts.limit;
-if (opts.debug) log("limit: " + limit);
+if (opts.debug) log("limit: " + limit, 'debug');
 
 var host = opts.host;
-if (opts.debug) log("host_to_use: " + host);
+if (opts.debug) log("host_to_use: " + host, 'debug');
 
 var jpeg = opts.jpeg;
 if (jpeg == undefined) jpeg = false;
-if (opts.debug) log("jpeg: " + jpeg);
+if (opts.debug) log("jpeg: " + jpeg, 'debug');
 var throttle_speed = opts.throttle;
-if (opts.debug) log("throttling_speed: " + throttle_speed);
+if (opts.debug) log("throttling_speed: " + throttle_speed, 'debug');
 var is_throttled = false;
 if (throttle_speed > 0) is_throttled = true;
 else if (throttle_speed != -1) {
-	log('You gave an incorrect speed to throttle by.');
-	log('Enter a value higher than 0.');
+	log('You gave an incorrect speed to throttle by.', 'error');
+	log('Enter a value higher than 0.', 'info');
 	process.exit(1);
 }
-if (opts.debug) log("is_throttled: " + is_throttled);
+if (opts.debug) log("is_throttled: " + is_throttled, 'debug');
 if (is_throttled) {
 	var throttler = new stream_throttler.ThrottleGroup({rate:limit})
 }
@@ -143,15 +171,15 @@ if (host != undefined) {
 		}
 	}
 	if (!host_on_list) {
-		log('Host supplied isn\'t on the list, sorry.');
-		log('If you think this is supplied in error, open an issue with the host url specified.');
+		log('Host supplied isn\'t on the list, sorry.', 'error');
+		log('If you think this is supplied in error, open an issue with the host url specified.', 'info');
 		process.exit(1);
 	}
 }
 
 var init = function() {
 	log('App started.');
-	if (sfw) log('The tags to block nsfw material are not fully complete, send me any tags you believe should be added.')
+	if (sfw) log('The tags to block nsfw material are not fully complete, send me any tags you believe should be added.', 'info')
 	images_downloaded = 0;
 	process.setMaxListeners(0); //unlimited listeners
 
@@ -159,12 +187,12 @@ var init = function() {
 }
 
 var dir = opts.directory
-if (opts.debug) log("directory: " + dir);
+if (opts.debug) log("directory: " + dir, 'debug');
 fs.exists(dir, function(exists) {
 	if (exists) {
 		fs.stat(dir, function(err,stats) {
 			if (stats.isFile()) {
-				log('Directory supplied is a file, this could cause problems.');
+				log('Directory supplied is a file, this could cause problems.', 'error');
 				process.exit(1);
 			}
 			else if (!err) {
@@ -173,55 +201,59 @@ fs.exists(dir, function(exists) {
 		});
 	}
 	else {
-		log('Directory doesn\'t exist, it shall be created.');
+		log('Directory doesn\'t exist, it shall be created.', 'info');
 		fs.mkdir(dir,init);
-		log('Directory created.');
+		log('Directory created.', 'info');
 	}
 });
 
 var onRequestFinish = function() {
-	log("Images downloaded & saved.");
+	log("Image downloaded & saved.", 'info');
 	images_downloaded += 1;
 	if (images_downloaded % limit == 0) {
-		log('All pictures downloaded.')
+		log('All pictures downloaded.', 'info')
 	}
 }
 
 var onRequestError = function(error) {
-	log('Streaming error.')
+	log('Streaming error.', 'error')
 	silentlog('Stream error: ' + error)
 	images_downloaded += 1;
 	if (images_downloaded % limit == 0) {
-		log('All pictures downloaded.')
+		log('All pictures downloaded.', 'error')
 	}
 }
 
 var downloadImage = function(file_url) {
 	log("Downloading " + file_url);
 	var file_name = file_url.split('/')[file_url.split('/').length - 1]; //querystring.unescape(); //removes html escaped strings
-	if (opts.debug) log("File name is: " + file_name);
+	if (opts.debug) log("File name is: " + file_name, 'debug');
 	var path = dir + file_name;
 	if (dir[dir.length - 1] != '/') {
 		path = dir + '/' + file_name;
 	}
 
-	if (opts.debug && !test) log('path: ' + path)
+	if (opts.debug && !test) log('path: ' + path, 'debug')
 
 	if (!test) {
 		if (!is_throttled) request(file_url).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError);
-		else if (throttle_speed > 0) request(file_url).pipe(throttler.throttle).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError);
+		else if (throttle_speed > 0) request(file_url).pipe(throttler.throttle()).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError);
 	}
 }
 
 var download = function() {
 	if (host == undefined) host = hosts[Math.floor(Math.random() * 2)];
-	log("Host: " + host);
+	log("Host: " + host, 'info');
 	var url = host + '/post.json?limit=' + limit;
 	if (sfw) {
 		url += '&tags=-' + url_nsfw_tags.join('+-')
 	}
-	log("url:" + url);
+	if (opts.debug) log("url:" + url, 'debug');
 	request(url, function(error, response, body) {
+		response.req.on('error', function(error){
+			log('An error occured during the request.');
+		});
+
 		if (!error && response.statusCode == 200) {
 			jsonlist = JSON.parse(body);
 			for (iter = 0; iter < jsonlist.length; iter++) {
@@ -230,7 +262,7 @@ var download = function() {
 				var file_url = json.file_url;
 				if (jpeg) file_url = json.jpeg_url;
 				var file_tags = json.tags;
-				log('File tags: ' + file_tags);
+				if (opts.debug) log('File tags: ' + file_tags, 'debug');
 
 				var image_sfw = true;
 				nsfw_tags.forEach(function(element,index,array){
@@ -243,17 +275,20 @@ var download = function() {
 					if (sfw && image_sfw) downloadImage(file_url);
 					else if (!sfw) downloadImage(file_url);
 					else if (sfw && !image_sfw) {
-						log('Image ' + file_url + ' is not sfw according to tags. \n These tags are: ' + file_tags);
+						log('Image ' + file_url + ' is not sfw according to tags. \n These tags are: ' + file_tags, 'warn');
 						images_downloaded += 1
 					}
 				}
 			}
 		}
+		else if (error) {
+			log('Error occured fetching the list of images from ' + host, 'error');
+		}
 		else {
-			log("Couldn't retrieve a valid url.");
+			log("Got a different status code: " + response.statusCode, 'error');
 		}
 	}).on('end', function() {
-		if (opts.debug) log('call ended');
+		if (opts.debug) log('call ended', 'debug');
 	}).on('error', function(error) {
 		silentlog('Fetching error: ' + error)
 	})
