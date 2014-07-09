@@ -15,7 +15,7 @@ var opts = require('nomnom')
 		flag: true,
 		help: 'Prints version of konajs',
 		callback: function() {
-			return "Version 0.1";
+			return "Version 0.4";
 		}
 	})
 	.option('nsfw', {
@@ -140,8 +140,6 @@ var log = function(text, color) {
 }
 
 var hosts = ['https://konachan.com','https://yande.re'];
-// var nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts', 'no_bra', 'no_pan', 'nipples'];
-// var url_nsfw_tags = nsfw_tags.slice(5, nsfw_tags.length - 1);
 
 var sfw = !opts.nsfw;
 if (opts.debug) log("sfw?: " + sfw, 'debug');
@@ -294,32 +292,22 @@ var download = function() {
 					var file_tags = json.tags;
 					if (opts.debug) log('File tags: ' + file_tags, 'debug');
 
-					var image_sfw = true;
-					// nsfw_tags.forEach(function(element,index,array){
-					// 	if (file_tags.indexOf(element) != -1) image_sfw = false;
-					// });
-
 					if (opts.debug) log(file_url);
 
 					if (file_url != undefined ) {
-						if (sfw && image_sfw) downloadImage(file_url);
-						else if (!sfw) downloadImage(file_url);
-						else if (sfw && !image_sfw) {
-							log('Image ' + file_url + ' is not sfw according to tags. \n These tags are: ' + file_tags, 'warn');
-							images_downloaded += 1;
-						}
+						downloadImage(file_url);
 					}
 				}
 			}
-		else {
-			log('The tags have given no results, try different, or less tags.');
-			process.exit(1);
+			else { //if tags don't work this is usually thrown
+				log('The tags have given no results, try different, or less tags.');
+				process.exit(1);
+			}
 		}
-		}
-		else if (error) {
+		else if (error) { //error thrown from request
 			log('Error occured fetching the list of images from ' + host, 'error');
 		}
-		else {
+		else { //status code should be the last thing that could be wrong.
 			log("Got a different status code: " + response.statusCode, 'error');
 		}
 	}).on('end', function() {
