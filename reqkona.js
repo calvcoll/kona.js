@@ -56,6 +56,21 @@ var opts = require('nomnom')
 		flag: true,
 		help: 'When flagged, this will download a jpeg file instead of a png'
 	})
+	.option('tags', {
+		flag: false,
+		help: 'Tags to use, separated by a comma.',
+		metavar: 'TAG,TAG,TAG or TAG'
+	})
+	.option('width', {
+		flag: false,
+		help: 'The minimum width of the images to request',
+		metavar: 'pixels'
+	})
+	.option('height', {
+		flag: false,
+		help: 'The minimum height of the images to request',
+		metavar: 'pixels'
+	})
 	.option('test', {
 		flag: true,
 		help: "Runs through, but doesn't download"
@@ -125,8 +140,8 @@ var log = function(text, color) {
 }
 
 var hosts = ['https://konachan.com','https://yande.re'];
-var nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts', 'no_bra', 'no_pan', 'nipples'];
-var url_nsfw_tags = nsfw_tags.slice(5, nsfw_tags.length - 1);
+// var nsfw_tags = ['nsfw', 'nude', 'uncensored', 'pussy', 'anus', 'masturbation', 'penis', 'breasts', 'no_bra', 'no_pan', 'nipples'];
+// var url_nsfw_tags = nsfw_tags.slice(5, nsfw_tags.length - 1);
 
 var sfw = !opts.nsfw;
 if (opts.debug) log("sfw?: " + sfw, 'debug');
@@ -144,6 +159,15 @@ if (opts.debug) log("limit: " + limit, 'debug');
 
 var host = opts.host;
 if (opts.debug) log("host_to_use: " + host, 'debug');
+
+var tags = opts.tags;
+if (opts.debug) log("tags: " + tags, 'debug');
+
+var width = opts.width;
+if (opts.debug) log('width: ' + width, 'debug');
+
+var height = opts.height;
+if (opts.debug) log('height: ' + height, 'debug');
 
 var jpeg = opts.jpeg;
 if (jpeg == undefined) jpeg = false;
@@ -245,41 +269,52 @@ var download = function() {
 	if (host == undefined) host = hosts[Math.floor(Math.random() * 2)];
 	log("Host: " + host, 'info');
 	var url = host + '/post.json?limit=' + limit;
+	if (tags || sfw || height || width) url += '&tags=';
+	if (tags) {
+		url += tags.replace(',', '+');
+	}
 	if (sfw) {
-		url += '&tags=-' + url_nsfw_tags.join('+-')
+		if (tags) url += '%20rating:safe'
+	}
+	if (height || width) {
+		if (height) url += '%20height:' + height + '..'
+		if (width) url += '%20width:' + width + '..'
 	}
 	if (opts.debug) log("url:" + url, 'debug');
-	request(url, function(error, response, body) {
-		response.req.on('error', function(error){
-			log('An error occured during the request.');
-		});
 
+	request(url, function(error, response, body) {
 		if (!error && response.statusCode == 200) {
 			jsonlist = JSON.parse(body);
-			for (iter = 0; iter < jsonlist.length; iter++) {
-				var json = jsonlist[iter];
-				if (opts.debug && opts.json) log(json)
-				var file_url = json.file_url;
-				if (jpeg) file_url = json.jpeg_url;
-				var file_tags = json.tags;
-				if (opts.debug) log('File tags: ' + file_tags, 'debug');
+			if (jsonlist != undefined) {
+				for (iter = 0; iter < jsonlist.length; iter++) {
+					var json = jsonlist[iter];
+					if (opts.debug && opts.json) log('json: ' + json, 'debug')
+					var file_url = json.file_url;
+					if (jpeg) file_url = json.jpeg_url;
+					var file_tags = json.tags;
+					if (opts.debug) log('File tags: ' + file_tags, 'debug');
 
-				var image_sfw = true;
-				nsfw_tags.forEach(function(element,index,array){
-					if (file_tags.indexOf(element) != -1) image_sfw = false;
-				});
+					var image_sfw = true;
+					// nsfw_tags.forEach(function(element,index,array){
+					// 	if (file_tags.indexOf(element) != -1) image_sfw = false;
+					// });
 
-				if (opts.debug) log(file_url);
+					if (opts.debug) log(file_url);
 
-				if (file_url != undefined ) {
-					if (sfw && image_sfw) downloadImage(file_url);
-					else if (!sfw) downloadImage(file_url);
-					else if (sfw && !image_sfw) {
-						log('Image ' + file_url + ' is not sfw according to tags. \n These tags are: ' + file_tags, 'warn');
-						images_downloaded += 1
+					if (file_url != undefined ) {
+						if (sfw && image_sfw) downloadImage(file_url);
+						else if (!sfw) downloadImage(file_url);
+						else if (sfw && !image_sfw) {
+							log('Image ' + file_url + ' is not sfw according to tags. \n These tags are: ' + file_tags, 'warn');
+							images_downloaded += 1;
+						}
 					}
 				}
 			}
+		else {
+			log('The tags have given no results, try different, or less tags.');
+			process.exit(1);
+		}
 		}
 		else if (error) {
 			log('Error occured fetching the list of images from ' + host, 'error');
