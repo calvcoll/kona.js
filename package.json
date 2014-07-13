@@ -1,0 +1,32 @@
+{
+  "name": "konajs",
+  "version": "0.4.0",
+  "description": "Anime picture downloader",
+  "main": "reqkona.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies" : {
+    "request" : "*",
+    "stream-throttle" : "*",
+    "colors" : "*",
+    "nomnom" : "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/calvcoll/konajs.git"
+  },
+  "keywords": [
+    "anime",
+    "picture",
+    "download",
+    "downloader",
+    "konachan"
+  ],
+  "author": "Calv Collins",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/calvcoll/konajs/issues"
+  },
+  "homepage": "https://github.com/calvcoll/konajs"
+}
