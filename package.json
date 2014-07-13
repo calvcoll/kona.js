@@ -1,8 +1,8 @@
 {
-  "name": "konajs",
+  "name": "kona.js",
   "version": "0.4.0",
   "description": "Anime picture downloader",
-  "main": "reqkona.js",
+  "main": "kona.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/calvcoll/konajs.git"
+    "url": "https://github.com/calvcoll/kona.js.git"
   },
   "keywords": [
     "anime",
@@ -26,7 +26,7 @@
   "author": "Calv Collins",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/calvcoll/konajs/issues"
+    "url": "https://github.com/calvcoll/kona.js/issues"
   },
-  "homepage": "https://github.com/calvcoll/konajs"
+  "homepage": "https://github.com/calvcoll/kona.js"
 }
