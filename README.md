@@ -2,7 +2,7 @@
 
 ##Installing
 ``` shell
-git clone git@github.com:calvcoll/konajs.git
+git clone git@github.com:calvcoll/kona.js.git
 cd konajs
 npm install
 ```
