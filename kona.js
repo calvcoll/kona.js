@@ -76,7 +76,7 @@ var opts = require('nomnom')
 		default: false,
 		help: 'Sets program to repeat downloading files, after the one try.'
 	})
-	.option('data-cap'. {
+	.option('data_cap', {
 		flag: false,
 		default: -1,
 		abbr: 'c',
@@ -214,6 +214,8 @@ if (is_capped) {
 	var cap_reached = false;
 }
 
+var download_streams = [];
+
 if (host != undefined) {
 	var host_on_list = false;
 	for (i=0; i<hosts.length; i++) {
@@ -259,11 +261,38 @@ fs.exists(dir, function(exists) {
 	}
 });
 
-var addToCap = function(bytesWritten) {
+var updateStreams = function(stream) {
+	download_streams.splice(download_streams.indexOf(stream), 1);
 	if (is_capped) {
-		data_transferred += Math.ceil(bytesWritten / 1024)
+		data_transferred += Math.ceil(stream.bytesWritten / 1024)
 		if (data_transferred >= data_cap) {
 			cap_reached = true;
+		}
+	}
+	console.log(stream);
+	if (cap_reached) {
+		log('Deleting the files that will exceed the data limit if downloaded.', 'error') //written as error to alert the user.
+		if (download_streams.length > 0) {
+			for (i=0; i<download_streams.length; i++) {
+				var stream = download_streams[i];
+				var stream_path = stream.path;
+				stream.close();
+				fs.exists(path, function(exists) {
+					if (exists) {
+						fs.unlink(path, function(err) {
+							if (err) silentlog(err);
+							else {
+								path_split = path.split('/');
+								file_name = path_split[path_split.length-1];
+								log('Deleted: ' + file_name, 'info');
+							}
+						});
+					}
+				});
+			}
+			while (download_streams.length > 0) {
+				download_streams.pop();
+			}
 		}
 	}
 }
@@ -275,7 +304,7 @@ var onRequestFinish = function(stream) {
 		log('All pictures downloaded.', 'info')
 	}
 
-	addToCap(stream.bytesWritten);
+	updateStreams(stream);
 }
 
 var onRequestError = function(error) {
@@ -300,8 +329,9 @@ var downloadImage = function(file_url) {
 
 	if (!test && !cap_reached) {
 		var write_stream = fs.createWriteStream(path)
+		download_streams.push(write_stream);
 
-		if (!is_throttled) request(file_url).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError);
+		if (!is_throttled) request(file_url).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError); /* Add somehow, on data, write_stream.close() when all are done. */
 		else if (throttle_speed > 0) request(file_url).pipe(throttler.throttle()).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError);
 	}
 }
