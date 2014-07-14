@@ -76,6 +76,13 @@ var opts = require('nomnom')
 		default: false,
 		help: 'Sets program to repeat downloading files, after the one try.'
 	})
+	.option('data-cap'. {
+		flag: false,
+		default: -1,
+		abbr: 'c',
+		help: 'Sets the data-cap of the application',
+		metavar: 'KB'
+	})
 	.option('test', {
 		flag: true,
 		help: "Runs through, but doesn't download"
@@ -192,6 +199,21 @@ if (is_throttled) {
 	var throttler = new stream_throttler.ThrottleGroup({rate:limit})
 }
 
+var data_cap = opts.data_cap;
+if (opts.debug) log('cap: ' + data_cap, 'debug');
+var is_capped = false;
+if (data_cap > 0) is_capped = true;
+else if (data_cap != -1) {
+	log('You have given an incorrect data limit to throttle by.', 'error');
+	log('Enter a value higher than 0.', 'info');
+	process.exit(1);
+}
+if (opts.debug) log('is_capped: ' + is_capped, 'debug');
+if (is_capped) {
+	var data_transferred = 0;
+	var cap_reached = false;
+}
+
 if (host != undefined) {
 	var host_on_list = false;
 	for (i=0; i<hosts.length; i++) {
@@ -237,13 +259,23 @@ fs.exists(dir, function(exists) {
 	}
 });
 
+var addToCap = function(bytesWritten) {
+	if (is_capped) {
+		data_transferred += Math.ceil(bytesWritten / 1024)
+		if (data_transferred >= data_cap) {
+			cap_reached = true;
+		}
+	}
+}
+
 var onRequestFinish = function(stream) {
 	log("Image downloaded & saved.", 'info');
 	images_downloaded += 1;
 	if (images_downloaded % limit == 0) {
 		log('All pictures downloaded.', 'info')
 	}
-	console.log(stream.bytesWritten);
+
+	addToCap(stream.bytesWritten);
 }
 
 var onRequestError = function(error) {
@@ -266,7 +298,7 @@ var downloadImage = function(file_url) {
 
 	if (opts.debug && !test) log('path: ' + path, 'debug')
 
-	if (!test) {
+	if (!test && !cap_reached) {
 		var write_stream = fs.createWriteStream(path)
 
 		if (!is_throttled) request(file_url).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError);
