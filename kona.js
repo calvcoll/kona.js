@@ -269,7 +269,7 @@ var updateStreams = function(stream) {
 			cap_reached = true;
 		}
 	}
-	console.log(stream);
+	// console.log(stream);
 	if (cap_reached) {
 		log('Deleting the files that will exceed the data limit if downloaded.', 'error') //written as error to alert the user.
 		if (download_streams.length > 0) {
