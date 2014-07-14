@@ -15,7 +15,7 @@ var opts = require('nomnom')
 		flag: true,
 		help: 'Prints version of konajs',
 		callback: function() {
-			return "Version 0.4";
+			return "Version 0.5";
 		}
 	})
 	.option('nsfw', {
@@ -70,6 +70,11 @@ var opts = require('nomnom')
 		flag: false,
 		help: 'The minimum height of the images to request',
 		metavar: 'pixels'
+	})
+	.option('repeat', {
+		flag: true,
+		default: false,
+		help: 'Sets program to repeat downloading files, after the one try.'
 	})
 	.option('test', {
 		flag: true,
@@ -167,6 +172,9 @@ if (opts.debug) log('width: ' + width, 'debug');
 var height = opts.height;
 if (opts.debug) log('height: ' + height, 'debug');
 
+var repeat = opts.repeat;
+if (opts.debug) log('repeat: ' + repeat, 'debug');
+
 var jpeg = opts.jpeg;
 if (jpeg == undefined) jpeg = false;
 if (opts.debug) log("jpeg: " + jpeg, 'debug');
@@ -229,12 +237,13 @@ fs.exists(dir, function(exists) {
 	}
 });
 
-var onRequestFinish = function() {
+var onRequestFinish = function(stream) {
 	log("Image downloaded & saved.", 'info');
 	images_downloaded += 1;
 	if (images_downloaded % limit == 0) {
 		log('All pictures downloaded.', 'info')
 	}
+	console.log(stream.bytesWritten);
 }
 
 var onRequestError = function(error) {
@@ -258,8 +267,10 @@ var downloadImage = function(file_url) {
 	if (opts.debug && !test) log('path: ' + path, 'debug')
 
 	if (!test) {
-		if (!is_throttled) request(file_url).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError);
-		else if (throttle_speed > 0) request(file_url).pipe(throttler.throttle()).pipe(fs.createWriteStream(path)).on('finish', onRequestFinish).on('error', onRequestError);
+		var write_stream = fs.createWriteStream(path)
+
+		if (!is_throttled) request(file_url).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError);
+		else if (throttle_speed > 0) request(file_url).pipe(throttler.throttle()).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError);
 	}
 }
 
@@ -319,5 +330,5 @@ var download = function() {
 
 var start = function() {
 	download();
-	setInterval(download, time * 1000);
+	if (repeat)	setInterval(download, time * 1000);
 }
