@@ -117,6 +117,11 @@ var silentlog = function(text) {
 	});
 }
 
+var silentlog = function(text,something) {
+	console.log('Note to dev: You forgot this doesn`t have a second parameter.'.error);
+	silentlog(text);
+}
+
 var log = function(text) {
 	json = false;
 	if (typeof text != "string") {
@@ -274,15 +279,15 @@ var updateStreams = function(stream) {
 		log('Deleting the files that will exceed the data limit if downloaded.', 'error') //written as error to alert the user.
 		if (download_streams.length > 0) {
 			for (i=0; i<download_streams.length; i++) {
-				var stream = download_streams[i];
-				var stream_path = stream.path;
-				stream.close();
-				fs.exists(path, function(exists) {
+				var _stream = download_streams[i];
+				var _stream_path = _stream.path;
+				_stream.close();
+				fs.exists(_stream_path, function(exists) {
 					if (exists) {
-						fs.unlink(path, function(err) {
+						fs.unlink(_stream_path, function(err) {
 							if (err) silentlog(err);
 							else {
-								path_split = path.split('/');
+								path_split = _stream_path.split('/');
 								file_name = path_split[path_split.length-1];
 								log('Deleted: ' + file_name, 'info');
 							}
