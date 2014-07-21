@@ -58,8 +58,8 @@ var opts = require('nomnom')
 	})
 	.option('tags', {
 		flag: false,
-		help: 'Tags to use, separated by a comma.',
-		metavar: 'TAG,TAG,TAG or TAG'
+		help: 'Tags to use, separated by a comma (and surrounded with \'\' or otherwise it will not work).',
+		metavar: '\'TAG,TAG,TAG\' or TAG'
 	})
 	.option('width', {
 		flag: false,
@@ -103,6 +103,15 @@ colors.setTheme({
 	info: 'green',
 	data: 'white'
 })
+
+var log_path = 'kona.log';
+fs.exists(log_path, function(exists) {
+	if (!exists) {
+		console.log('Log file doesn\'t exist, it shall be created.'.info);
+		fs.openSync(log_path,'w');
+		log('Log file created.', 'info');
+	}
+});
 
 var silentlog = function(text) {
 	json = false;
@@ -274,7 +283,6 @@ var updateStreams = function(stream) {
 			cap_reached = true;
 		}
 	}
-	// console.log(stream);
 	if (cap_reached) {
 		log('Deleting the files that will exceed the data limit if downloaded.', 'error') //written as error to alert the user.
 		if (download_streams.length > 0) {
@@ -323,7 +331,7 @@ var onRequestError = function(error) {
 
 var downloadImage = function(file_url) {
 	log("Downloading " + file_url);
-	var file_name = file_url.split('/')[file_url.split('/').length - 1]; //querystring.unescape(); //removes html escaped strings
+	var file_name = file_url.split('/')[file_url.split('/').length - 1];
 	if (opts.debug) log("File name is: " + file_name, 'debug');
 	var path = dir + file_name;
 	if (dir[dir.length - 1] != '/') {
@@ -336,7 +344,7 @@ var downloadImage = function(file_url) {
 		var write_stream = fs.createWriteStream(path)
 		download_streams.push(write_stream);
 
-		if (!is_throttled) request(file_url).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError); /* Add somehow, on data, write_stream.close() when all are done. */
+		if (!is_throttled) request(file_url).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError);
 		else if (throttle_speed > 0) request(file_url).pipe(throttler.throttle()).pipe(write_stream).on('finish', function() {onRequestFinish(write_stream);}).on('error', onRequestError);
 	}
 }
