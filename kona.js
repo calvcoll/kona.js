@@ -126,10 +126,10 @@ var silentlog = function(text) {
 	});
 }
 
-var silentlog = function(text,something) {
+/**var silentlog = function(text,something) {
 	console.log('Note to dev: You forgot this doesn`t have a second parameter.'.error);
 	silentlog(text);
-}
+}*/
 
 var log = function(text) {
 	json = false;
@@ -165,7 +165,7 @@ var log = function(text, color) {
 	});
 }
 
-var hosts = ['https://konachan.com','https://yande.re'];
+var hosts = ['http://konachan.com','https://yande.re'];
 
 var sfw = !opts.nsfw;
 if (opts.debug) log("sfw?: " + sfw, 'debug');
@@ -392,6 +392,7 @@ var download = function() {
 		}
 		else if (error) { //error thrown from request
 			log('Error occured fetching the list of images from ' + host, 'error');
+			silentlog(error);
 		}
 		else { //status code should be the last thing that could be wrong.
 			log("Got a different status code: " + response.statusCode, 'error');
