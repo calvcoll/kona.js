@@ -83,6 +83,13 @@ var opts = require('nomnom')
 		help: 'Sets the data-cap of the application',
 		metavar: 'KB'
 	})
+	.option('page', {
+		flag: false,
+		default: -1,
+		abbr: 'p',
+		help: 'Sets the page',
+		metavar: 'PAGE'
+	})
 	.option('test', {
 		flag: true,
 		help: "Runs through, but doesn't download"
@@ -195,6 +202,9 @@ if (opts.debug) log('height: ' + height, 'debug');
 
 var repeat = opts.repeat;
 if (opts.debug) log('repeat: ' + repeat, 'debug');
+
+var page = opts.page;
+if (opts.debug) log('page: ' + page, 'debug');
 
 var jpeg = opts.jpeg;
 if (jpeg == undefined) jpeg = false;
@@ -363,6 +373,9 @@ var download = function() {
 	if (height || width) {
 		if (height) url += '%20height:' + height + '..'
 		if (width) url += '%20width:' + width + '..'
+	}
+	if (page > 0) {
+		url += '&page=' + page
 	}
 	if (opts.debug) log("url:" + url, 'debug');
 
