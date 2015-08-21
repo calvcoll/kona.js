@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/calvcoll/kona.js.svg?branch=master)](https://travis-ci.org/calvcoll/kona.js)
 # Kona.js
 
 ##Installing
