@@ -421,3 +421,6 @@ var start = function() {
 	download();
 	if (repeat)	setInterval(download, time * 1000);
 }
+
+
+exports.init = init;

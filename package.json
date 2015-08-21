@@ -4,7 +4,7 @@
   "description": "Anime picture downloader",
   "main": "kona.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
   "dependencies" : {
     "request" : ">=2.37.0",
